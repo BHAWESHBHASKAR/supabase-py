@@ -177,6 +177,30 @@ def test_transform_state_additional_fields() -> None:
     assert result == expected_output
 
 
+def test_transform_state_skips_meta_without_phx_ref() -> None:
+    # phx_ref is NotRequired on PresenceMeta, so a malformed frame can omit it.
+    # Such a meta must be skipped, not raise, since the exception would escape
+    # the listen loop and silently stop every later message.
+    state: RawPresenceState = {
+        "user1": {
+            "metas": [
+                {"user_id": "user1", "status": "online"},  # type: ignore[typeddict-unknown-key]
+                {  # type: ignore[typeddict-unknown-key]
+                    "phx_ref": "DEF456",
+                    "user_id": "user1",
+                    "status": "away",
+                },
+            ]
+        }
+    }
+
+    result = AsyncRealtimePresence._transform_state(state)
+
+    assert result == {
+        "user1": [{"presence_ref": "DEF456", "user_id": "user1", "status": "away"}]
+    }
+
+
 def test_presence_has_callback_attached() -> None:
     """Test that _has_callback_attached property correctly detects presence callbacks."""
     presence = AsyncRealtimePresence()
