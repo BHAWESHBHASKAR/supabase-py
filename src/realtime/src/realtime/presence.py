@@ -63,7 +63,14 @@ def _transform_state(
         for presence in presences["metas"]:
             if "phx_ref_prev" in presence:
                 del presence["phx_ref_prev"]
-            new_presence: Presence = {"presence_ref": presence.pop("phx_ref")}
+            phx_ref = presence.pop("phx_ref", None)
+            if phx_ref is None:
+                # phx_ref is NotRequired on PresenceMeta, so a malformed frame
+                # can omit it. Skip such a meta instead of raising, since the
+                # exception would escape the listen loop and silently stop every
+                # later message.
+                continue
+            new_presence: Presence = {"presence_ref": phx_ref}
             new_presence.update(presence)
             new_state[key].append(new_presence)
     return new_state

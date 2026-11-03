@@ -146,6 +146,30 @@ def test_transform_state_additional_fields() -> None:
     assert result == expected_output
 
 
+def test_transform_state_skips_meta_without_phx_ref() -> None:
+    # phx_ref is NotRequired on PresenceMeta, so a malformed frame can omit it.
+    # Such a meta must be skipped, not raise, since the exception would escape
+    # the listen loop and silently stop every later message.
+    state: RawPresenceState = {
+        "user1": {
+            "metas": [
+                {"user_id": "user1", "status": "online"},  # type: ignore
+                {  # type: ignore
+                    "phx_ref": "DEF456",
+                    "user_id": "user1",
+                    "status": "away",
+                },
+            ]
+        }
+    }
+
+    result = _transform_state(state)
+
+    assert result == {
+        "user1": [{"presence_ref": "DEF456", "user_id": "user1", "status": "away"}]
+    }
+
+
 def test_sync_diff_processes_every_leave_key() -> None:
     """Leaves for a key the client never tracked must not skip the remaining keys."""
     presence = RealtimePresence()
